@@ -74,14 +74,12 @@ build.ps1                         build + package script (used locally and by CI
 
 ## Releasing
 
-Every push to `main` is built by GitHub Actions, and the exe is attached to the run as an artifact. To publish a release, push a version tag:
+Every push to `main` is built by GitHub Actions, and the exe is attached to the run as an artifact. To publish a release, use either method:
 
-```powershell
-git tag v1.1.0
-git push origin v1.1.0
-```
+- **From the website:** go to **Actions → Build → Run workflow**, type a version such as `1.1.0`, and press **Run workflow**.
+- **From git:** `git tag v1.1.0` then `git push origin v1.1.0`.
 
-The workflow builds that version, stamps it into the exe, and creates a GitHub Release with `Mesodisk.exe`, the zip and the checksums. Tags with a suffix (for example `v1.1.0-beta1`) are published as pre-releases.
+The workflow builds that version, stamps it into the exe, tags the commit, and creates a GitHub Release with `Mesodisk.exe`, the zip and the checksums. Versions with a suffix (for example `1.1.0-beta1`) are published as pre-releases.
 
 ## Notes
 

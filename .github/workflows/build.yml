@@ -1,13 +1,22 @@
 name: Build
 
 # Every push and pull request builds Mesodisk.exe and keeps it as a downloadable artifact.
-# Pushing a version tag (e.g. v1.0.0) also publishes a GitHub Release with the portable exe.
+#
+# To publish a release, either:
+#   - Actions tab > Build > Run workflow > enter a version (e.g. 1.0.0), or
+#   - push a version tag (git tag v1.0.0 && git push origin v1.0.0).
+# Both create a GitHub Release with the portable exe, the zip and checksums.
 on:
   push:
     branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.0.0 (leave empty for a test build without a release)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -15,6 +24,8 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: ${{ github.event.inputs.version }}
     steps:
       - name: Check out
         uses: actions/checkout@v5
@@ -23,7 +34,8 @@ jobs:
 
       - name: Build Mesodisk.exe
         shell: powershell
-        run: .\build.ps1
+        run: |
+          if ($env:RELEASE_VERSION) { .\build.ps1 -Version $env:RELEASE_VERSION } else { .\build.ps1 }
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -33,13 +45,20 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.version != ''
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $ghArgs = @($env:GITHUB_REF_NAME) + (Get-ChildItem dist -File).FullName
-          $ghArgs += @('--title', "Mesodisk $env:GITHUB_REF_NAME", '--notes-file', 'obj/release-notes.md', '--verify-tag')
-          if ($env:GITHUB_REF_NAME -match '-') { $ghArgs += '--prerelease' }
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $tag = $env:GITHUB_REF_NAME
+            $extra = @('--verify-tag')
+          } else {
+            $tag = 'v' + $env:RELEASE_VERSION.Trim().TrimStart('v', 'V')
+            $extra = @('--target', $env:GITHUB_SHA)   # GitHub creates the tag on this commit
+          }
+          $ghArgs = @($tag) + (Get-ChildItem dist -File).FullName
+          $ghArgs += @('--title', "Mesodisk $tag", '--notes-file', 'obj/release-notes.md') + $extra
+          if ($tag -match '-') { $ghArgs += '--prerelease' }
           gh release create @ghArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
