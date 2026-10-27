@@ -1,0 +1,30 @@
+name: Website
+
+# Publishes docs/ (the download page) to the gh-pages branch, which GitHub Pages serves at
+# https://josephsstuff.github.io/Mesodisk/. The page reads the latest release from the
+# GitHub API, so it does not need republishing when a new version is released.
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Publish docs/ to gh-pages
+        working-directory: docs
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Publish website from ${GITHUB_SHA::7}"
+          git push --force -q "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

@@ -2,7 +2,7 @@
 
 Mesodisk is a portable Windows app that formats every new disk you plug in, then shows that disk's full S.M.A.R.T. health report from [CrystalDiskInfo](https://github.com/hiyohiyo/CrystalDiskInfo). It's built for working through a pile of drives one after another.
 
-**[⬇ Download the latest release](../../releases/latest)**: get `Mesodisk.exe`, a single file with nothing to install.
+**[⬇ Download Mesodisk](https://josephsstuff.github.io/Mesodisk/)**: get `Mesodisk.exe`, a single file with nothing to install. All versions are on the [Releases page](../../releases).
 
 ## How it works
 
@@ -70,6 +70,8 @@ src/Mesodisk/app.manifest         requests Administrator
 third_party/CrystalDiskInfo/      unmodified portable CrystalDiskInfo (embedded at build time)
 build.ps1                         build + package script (used locally and by CI)
 .github/workflows/build.yml       CI build and GitHub Releases
+docs/index.html                   download page (josephsstuff.github.io/Mesodisk)
+.github/workflows/website.yml     publishes docs/ to GitHub Pages
 ```
 
 ## Releasing

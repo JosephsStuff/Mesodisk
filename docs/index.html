@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesodisk – format a drive, read its health, next drive</title>
+<meta name="description" content="Mesodisk is a free portable Windows app that formats each newly inserted disk and shows its full S.M.A.R.T. health report from CrystalDiskInfo.">
+<meta property="og:title" content="Mesodisk">
+<meta property="og:description" content="Format a drive, read its S.M.A.R.T. health, move to the next one. Free, portable, for Windows 10 and 11.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='7' width='26' height='18' rx='3' fill='%231c2733'/%3E%3Crect x='7' y='11' width='10' height='3' rx='1' fill='%23f08824'/%3E%3Ccircle cx='23' cy='19' r='2.4' fill='%2333b06a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bag: #dfe4e8;        /* anti-static bag silver: page */
+    --bag-deep: #cdd4da;
+    --label: #ffffff;      /* drive label paper: panels */
+    --ink: #1c2733;        /* text */
+    --ink-soft: #55616d;
+    --rule: #b9c2ca;
+    --arm: #f08824;        /* Mesodisk ARM orange: the one action colour */
+    --arm-ink: #6b3300;
+    --good: #23935a;
+    --caution: #c98a12;
+    --bad: #c8414a;
+    --app: #1b1e23;        /* the app's own dark surface, used only inside the bench */
+    --app-card: #23272d;
+    --app-text: #e9ebee;
+    --app-muted: #969da6;
+    --wide: "wdth" 125;
+    --measure: 66ch;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bag);
+    color: var(--ink);
+    font-family: "Archivo", system-ui, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    font-variation-settings: "wdth" 100;
+  }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--arm); outline-offset: 3px; border-radius: 4px; }
+  .wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+
+  /* ---------- header ---------- */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0; }
+  .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 1.25rem; font-variation-settings: var(--wide); letter-spacing: -0.01em; }
+  .mark svg { width: 30px; height: 30px; }
+  .top nav { display: flex; gap: 22px; font-size: 0.95rem; }
+  .top nav a { text-decoration: none; color: var(--ink-soft); }
+  .top nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+
+  /* ---------- hero ---------- */
+  .hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; padding: 40px 0 72px; }
+  h1 {
+    font-size: clamp(2.6rem, 5.6vw, 4.6rem);
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    font-weight: 800;
+    font-variation-settings: var(--wide);
+    margin: 0 0 24px;
+  }
+  h1 span { display: block; }
+  h1 span:nth-child(2) { color: var(--ink-soft); }
+  h1 span:nth-child(3) { font-variation-settings: "wdth" 62; font-weight: 700; }
+  .lede { font-size: 1.2rem; max-width: 34ch; color: var(--ink-soft); margin: 0 0 32px; }
+  .get { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--arm); color: #1a0e00; text-decoration: none;
+    font-weight: 800; font-size: 1.1rem; font-variation-settings: "wdth" 110;
+    padding: 16px 26px; border-radius: 10px;
+    box-shadow: 0 2px 0 var(--arm-ink);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 3px 0 var(--arm-ink); }
+  .btn:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--arm-ink); }
+  .btn svg { width: 22px; height: 22px; }
+  .btn small { font-weight: 500; opacity: .8; font-size: .85rem; }
+  .get .alt { font-size: .98rem; color: var(--ink-soft); }
+  .req { margin-top: 18px; font-size: .92rem; color: var(--ink-soft); }
+
+  /* ---------- the bench: replay of one Mesodisk cycle ---------- */
+  .bench {
+    background: var(--app); color: var(--app-text);
+    border-radius: 14px; padding: 18px; position: relative;
+    box-shadow: 0 1px 0 #fff inset, 0 24px 50px -24px rgba(28,39,51,.55);
+    font-variation-settings: "wdth" 100;
+  }
+  .bench-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .bench-bar b { font-variation-settings: var(--wide); letter-spacing: .02em; font-size: .95rem; }
+  .pill { font-weight: 700; font-size: .78rem; padding: 6px 12px; border-radius: 6px; background: #545a63; color: #fff; transition: background .3s; }
+  .pill.armed { background: var(--arm); color: #1a0e00; }
+  .pill.working { background: #3a78c8; }
+  .stage { background: var(--app-card); border-radius: 10px; padding: 16px; min-height: 248px; position: relative; overflow: hidden; }
+  .drive {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px;
+    background: #2c3138; border-left: 6px solid #545a63; transition: border-color .4s;
+  }
+  .drive svg { flex: none; width: 34px; height: 24px; }
+  .drive .name { font-weight: 600; font-size: .95rem; }
+  .drive .meta { color: var(--app-muted); font-size: .82rem; }
+  .step-text { margin: 14px 2px 10px; font-size: .92rem; color: var(--app-muted); min-height: 1.4em; }
+  .progress { height: 6px; background: #343a42; border-radius: 3px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: #3a78c8; border-radius: 3px; }
+  .verdict { display: none; grid-template-columns: auto 1fr; gap: 14px 16px; align-items: center; margin-top: 14px; }
+  .badge { background: var(--good); color: #fff; font-weight: 800; font-size: 1.35rem; font-variation-settings: var(--wide); padding: 10px 16px; border-radius: 8px; }
+  .pct { font-size: 1.9rem; font-weight: 800; font-variation-settings: var(--wide); }
+  .vol { grid-column: 1 / -1; font-size: .86rem; color: var(--app-muted); }
+  .vol b { color: var(--app-text); font-weight: 600; }
+  .attrs { grid-column: 1 / -1; width: 100%; border-collapse: collapse; font-size: .8rem; font-variant-numeric: tabular-nums; }
+  .attrs td { padding: 4px 6px; border-top: 1px solid #343a42; }
+  .attrs td:first-child { color: var(--app-muted); width: 2.4em; }
+  .attrs td.n { text-align: right; }
+  .replay { position: absolute; right: 18px; bottom: -40px; background: none; border: 0; color: var(--ink-soft); font: inherit; font-size: .88rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: 4px; }
+  .replay:hover { color: var(--ink); }
+
+  /* ---------- sections ---------- */
+  section.band { padding: 72px 0; border-top: 1px solid var(--rule); }
+  h2 { font-size: clamp(1.7rem, 3vw, 2.3rem); line-height: 1.1; letter-spacing: -0.015em; font-weight: 800; font-variation-settings: "wdth" 115; margin: 0 0 14px; }
+  .intro { color: var(--ink-soft); max-width: var(--measure); margin: 0 0 36px; }
+
+  .cycle { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; counter-reset: c; }
+  .cycle li { counter-increment: c; padding: 0 28px 0 0; position: relative; }
+  .cycle li + li { padding-left: 28px; border-left: 1px dashed var(--rule); }
+  .cycle li::before {
+    content: counter(c); display: block; font-size: 3.4rem; line-height: 1; font-weight: 800;
+    font-variation-settings: "wdth" 62; color: var(--bag-deep); -webkit-text-stroke: 1.5px var(--ink); margin-bottom: 12px;
+  }
+  .cycle h3 { font-size: 1.15rem; margin: 0 0 6px; font-variation-settings: "wdth" 110; }
+  .cycle p { margin: 0; color: var(--ink-soft); }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
+  .rules { list-style: none; padding: 0; margin: 0; }
+  .rules li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 12px 0; border-top: 1px solid var(--rule); }
+  .rules li:last-child { border-bottom: 1px solid var(--rule); }
+  .rules svg { width: 20px; height: 20px; margin-top: 3px; color: var(--good); }
+  .screen dl { margin: 0; }
+  .screen dt { font-weight: 700; margin-top: 16px; font-variation-settings: "wdth" 110; }
+  .screen dt:first-child { margin-top: 0; }
+  .screen dd { margin: 2px 0 0; color: var(--ink-soft); }
+  .sw { display: inline-block; width: .8em; height: .8em; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+
+  /* ---------- release box: looks like a drive label ---------- */
+  .label {
+    background: var(--label); border-radius: 12px; padding: 30px; display: grid; grid-template-columns: 1fr auto; gap: 24px 40px;
+    box-shadow: 0 1px 0 var(--rule), 0 18px 40px -28px rgba(28,39,51,.6);
+    position: relative;
+  }
+  .label::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: var(--arm); border-radius: 12px 0 0 12px; }
+  .label h2 { margin-bottom: 4px; }
+  .rel-meta { color: var(--ink-soft); margin: 0; }
+  .files { grid-column: 1 / -1; width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .files th { text-align: left; font-weight: 600; font-size: .9rem; color: var(--ink-soft); padding: 8px 10px 8px 0; border-bottom: 1.5px solid var(--ink); }
+  .files td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .files td.size { white-space: nowrap; }
+  .files .hash { font-size: .8rem; color: var(--ink-soft); word-break: break-all; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .label .btn { align-self: center; }
+  .note { grid-column: 1 / -1; margin: 0; font-size: .93rem; color: var(--ink-soft); max-width: var(--measure); }
+
+  footer { padding: 40px 0 56px; color: var(--ink-soft); font-size: .92rem; border-top: 1px solid var(--rule); }
+  footer p { margin: 0 0 6px; max-width: var(--measure); }
+
+  @media (max-width: 880px) {
+    .hero, .split { grid-template-columns: 1fr; gap: 40px; }
+    .hero { padding-top: 16px; }
+    .cycle { grid-template-columns: 1fr; gap: 28px; }
+    .cycle li, .cycle li + li { padding: 0; border-left: 0; }
+    .label { grid-template-columns: 1fr; padding: 24px 22px 24px 28px; }
+    .files thead { display: none; }
+    .files td { display: block; border: 0; padding: 2px 0; }
+    .files tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+    .top nav a.hide-s { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap top">
+  <a class="mark" href="./" aria-label="Mesodisk home">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="18" rx="3" fill="#1c2733"/><rect x="7" y="11" width="10" height="3" rx="1" fill="#f08824"/><circle cx="23" cy="19" r="2.4" fill="#33b06a"/></svg>
+    Mesodisk
+  </a>
+  <nav>
+    <a href="#download" class="hide-s">Download</a>
+    <a href="#how" class="hide-s">How it works</a>
+    <a href="https://github.com/JosephsStuff/Mesodisk">Source on GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <h1><span>Format it.</span><span>Check its health.</span><span>Next drive.</span></h1>
+      <p class="lede">Mesodisk wipes and formats each disk you plug in, then shows its full S.M.A.R.T. report from CrystalDiskInfo. It's built for working through a stack of drives.</p>
+      <div class="get">
+        <a class="btn js-exe" href="https://github.com/JosephsStuff/Mesodisk/releases/latest/download/Mesodisk.exe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m6 10 6 6 6-6"/><path d="M4 20h16"/></svg>
+          Download Mesodisk <small class="js-ver"></small>
+        </a>
+        <a class="alt" href="#download">Checksums and other files</a>
+      </div>
+      <p class="req">Free and open source. A single portable exe for Windows 10 and 11 with nothing to install.</p>
+    </div>
+
+    <div class="bench" aria-label="Animated example of one Mesodisk cycle" role="img">
+      <div class="bench-bar"><b>MESODISK</b><span class="pill" id="pill">DISARMED</span></div>
+      <div class="stage">
+        <div class="drive" id="drive">
+          <svg viewBox="0 0 34 24" aria-hidden="true"><rect x="1" y="1" width="32" height="22" rx="3" fill="#3a4049" stroke="#6b737d"/><rect x="5" y="5" width="14" height="4" rx="1" fill="#6b737d"/><circle cx="27" cy="17" r="2" id="led" fill="#6b737d"/></svg>
+          <div><div class="name" id="dname">Waiting for a disk</div><div class="meta" id="dmeta">Disks connected at launch are protected</div></div>
+        </div>
+        <p class="step-text" id="step">Press ARM, then insert a drive.</p>
+        <div class="progress"><i id="bar"></i></div>
+        <div class="verdict" id="verdict">
+          <span class="badge">GOOD</span><span class="pct">100 %</span>
+          <div class="vol">Formatted <b>exFAT</b>, label <b>BLANK</b>, drive <b>E:</b>, <b>465.7 GB</b> free</div>
+          <table class="attrs">
+            <tr><td>05</td><td>Reallocated Sectors Count</td><td class="n">0</td></tr>
+            <tr><td>09</td><td>Power-On Hours</td><td class="n">12</td></tr>
+            <tr><td>0C</td><td>Power Cycle Count</td><td class="n">30</td></tr>
+            <tr><td>C2</td><td>Temperature</td><td class="n">31 °C</td></tr>
+          </table>
+        </div>
+      </div>
+      <button class="replay" id="replay" type="button">Replay</button>
+    </div>
+  </div>
+
+  <section class="band" id="how">
+    <div class="wrap">
+      <h2>One cycle per drive</h2>
+      <p class="intro">Set it up once, then keep swapping drives. The results stay on screen until the next new disk goes in.</p>
+      <ol class="cycle">
+        <li><h3>Arm</h3><p>Choose FAT32, exFAT or NTFS and a volume label, then press ARM. If no new disk arrives for 15 minutes, Mesodisk disarms itself.</p></li>
+        <li><h3>Insert a drive</h3><p>Mesodisk erases it, creates one partition and quick-formats it. Extra drives inserted together are queued and handled one at a time.</p></li>
+        <li><h3>Read the result</h3><p>The health verdict, every S.M.A.R.T. attribute, and the new file system, label, drive letter and free space appear on one screen.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap split">
+      <div>
+        <h2>It won't touch the wrong disk</h2>
+        <p class="intro">Formatting erases data, so Mesodisk refuses to format a disk if:</p>
+        <ul class="rules">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg><span>it was connected when Mesodisk started, even if you unplug it and plug it back in</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg><span>Windows reports it as the boot or system disk</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg><span>it is a virtual disk, or a card reader with no card in it</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg><span>Mesodisk is disarmed. The drive still gets its health check, and a confirmed "Format this disk now" is available.</span></li>
+        </ul>
+      </div>
+      <div class="screen">
+        <h2>What you see</h2>
+        <p class="intro">Everything about the drive you just processed, on one screen.</p>
+        <dl>
+          <dt>Health verdict</dt>
+          <dd>CrystalDiskInfo's <span class="sw" style="background:var(--good)"></span>Good, <span class="sw" style="background:var(--caution)"></span>Caution or <span class="sw" style="background:var(--bad)"></span>Bad, with the health percentage, temperature, power-on hours and data written.</dd>
+          <dt>Format summary</dt>
+          <dd>File system, label, drive letter, capacity and available space, or the reason the drive wasn't formatted.</dd>
+          <dt>All S.M.A.R.T. attributes</dt>
+          <dd>Current, worst, threshold and raw values. Failing attributes are shown in red and warning signs in amber.</dd>
+          <dt>Full report</dt>
+          <dd>CrystalDiskInfo's own text report for the drive, plus the diskpart output.</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="download">
+    <div class="wrap">
+      <div class="label">
+        <div>
+          <h2 class="js-title">Mesodisk</h2>
+          <p class="rel-meta js-meta">Latest release</p>
+        </div>
+        <a class="btn js-exe" href="https://github.com/JosephsStuff/Mesodisk/releases/latest/download/Mesodisk.exe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m6 10 6 6 6-6"/><path d="M4 20h16"/></svg>
+          Download Mesodisk.exe
+        </a>
+        <table class="files">
+          <thead><tr><th>File</th><th>Size</th><th>SHA-256</th></tr></thead>
+          <tbody class="js-files">
+            <tr><td><a href="https://github.com/JosephsStuff/Mesodisk/releases/latest">See all files on GitHub</a></td><td></td><td></td></tr>
+          </tbody>
+        </table>
+        <p class="note">The exe isn't code-signed yet, so Windows SmartScreen may say the publisher is unknown. Choose <strong>More info</strong>, then <strong>Run anyway</strong>. Mesodisk asks for Administrator rights because Windows only lets elevated programs format disks and read S.M.A.R.T. data. <a href="https://github.com/JosephsStuff/Mesodisk/releases">Previous versions</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>Mesodisk is open source under the MIT License. <a href="https://github.com/JosephsStuff/Mesodisk">Read the code, report a problem or build it yourself on GitHub.</a></p>
+  <p>S.M.A.R.T. data comes from <a href="https://github.com/hiyohiyo/CrystalDiskInfo">CrystalDiskInfo</a> by hiyohiyo (MIT License), which is embedded in Mesodisk.</p>
+</footer>
+
+<script>
+(function () {
+  // ---------- latest release (GitHub API; static links above work without it)
+  var REPO = "JosephsStuff/Mesodisk";
+  function size(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB"; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (rel) {
+      var hashes = {};
+      (rel.body || "").replace(/^([0-9a-f]{64})\s+(\S+)\s*$/gim, function (_, h, n) { hashes[n] = h.toLowerCase(); });
+      var exe = null, rows = "";
+      rel.assets.forEach(function (a) {
+        if (a.name === "Mesodisk.exe") exe = a;
+        rows += "<tr><td><a href=\"" + esc(a.browser_download_url) + "\">" + esc(a.name) + "</a></td><td class=\"size\">" + size(a.size) +
+          "</td><td class=\"hash\">" + (hashes[a.name] || "") + "</td></tr>";
+      });
+      var ver = rel.tag_name;
+      var date = new Date(rel.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+      document.querySelectorAll(".js-ver").forEach(function (el) { el.textContent = ver + (exe ? ", " + size(exe.size) : ""); });
+      document.querySelector(".js-title").textContent = "Mesodisk " + ver;
+      document.querySelector(".js-meta").textContent = "Released " + date + ". Single portable exe, CrystalDiskInfo included.";
+      document.querySelector(".js-files").innerHTML = rows;
+      if (exe) document.querySelectorAll(".js-exe").forEach(function (el) { el.href = exe.browser_download_url; });
+    })
+    .catch(function () { /* keep the static /releases/latest links */ });
+
+  // ---------- bench replay: one orchestrated sequence
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var $ = function (id) { return document.getElementById(id); };
+  var timers = [];
+  function at(ms, fn) { timers.push(setTimeout(fn, reduce ? 0 : ms)); }
+  function setPill(text, cls) { var p = $("pill"); p.textContent = text; p.className = "pill" + (cls ? " " + cls : ""); }
+  function bar(pct, ms) { var b = $("bar"); b.style.transition = reduce ? "none" : "width " + ms + "ms linear"; b.style.width = pct + "%"; }
+  function run() {
+    timers.forEach(clearTimeout); timers = [];
+    $("verdict").style.display = "none"; bar(0, 0); $("bar").style.background = "#3a78c8";
+    $("drive").style.borderLeftColor = "#545a63"; $("led").setAttribute("fill", "#6b737d");
+    $("dname").textContent = "Waiting for a disk"; $("dmeta").textContent = "Disks connected at launch are protected";
+    $("step").textContent = "Press ARM, then insert a drive."; setPill("DISARMED");
+    at(700, function () { setPill("ARMED 14:59", "armed"); $("step").textContent = "Armed: next new disk becomes exFAT \"BLANK\"."; $("drive").style.borderLeftColor = "var(--arm)"; });
+    at(1900, function () {
+      setPill("WORKING", "working"); $("led").setAttribute("fill", "#f08824");
+      $("dname").textContent = "Disk 3 – Netac MobileDataStar"; $("dmeta").textContent = "500 GB, USB";
+      $("step").textContent = "Erasing and formatting as exFAT…"; bar(62, 1700);
+    });
+    at(3700, function () { $("step").textContent = "Reading S.M.A.R.T. with CrystalDiskInfo…"; bar(100, 1300); });
+    at(5200, function () {
+      setPill("ARMED 15:00", "armed"); $("bar").style.background = "var(--good)"; $("led").setAttribute("fill", "#33b06a");
+      $("drive").style.borderLeftColor = "var(--good)"; $("step").textContent = "Done. Results stay here until the next disk.";
+      $("verdict").style.display = "grid";
+    });
+  }
+  $("replay").addEventListener("click", run);
+  run();
+})();
+</script>
+</body>
+</html>
