@@ -1,0 +1,14 @@
+* text=auto
+*.cs      text eol=crlf
+*.ps1     text eol=crlf
+*.cmd     text eol=crlf
+*.manifest text eol=crlf
+*.md      text eol=lf
+*.yml     text eol=lf
+
+# CrystalDiskInfo bundle: keep byte-for-byte
+third_party/CrystalDiskInfo/** -text
+*.exe binary
+*.dll binary
+*.png binary
+*.ico binary

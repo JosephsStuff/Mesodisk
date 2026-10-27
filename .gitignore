@@ -1,0 +1,15 @@
+# Build output
+bin/
+obj/
+dist/
+
+# Files CrystalDiskInfo writes when run from this folder
+third_party/CrystalDiskInfo/DiskInfo.txt
+third_party/CrystalDiskInfo/Smart/
+third_party/CrystalDiskInfo/.mesodisk-*
+
+# Editors / OS
+.vs/
+*.user
+Thumbs.db
+desktop.ini

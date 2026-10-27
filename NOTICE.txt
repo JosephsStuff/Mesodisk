@@ -1,0 +1,7 @@
+Mesodisk is a local Windows disk utility.
+
+It does not use telemetry, analytics, or network access.
+
+Administrator rights are required because Windows only allows elevated processes to clear, partition, and format physical disks, and to read S.M.A.R.T. data.
+
+Formatting is destructive. Mesodisk blocks disks that were present when it started, boot/system disks and virtual disks, and only formats while armed. It disarms itself after 15 minutes without a new disk.
